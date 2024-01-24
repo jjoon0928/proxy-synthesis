@@ -34,7 +34,7 @@ parser = argparse.ArgumentParser(description='PyTorch Training')
 parser.add_argument('--data', help='path to dataset')
 parser.add_argument('--data_name', default=None, type=str,
                     help='dataset name')
-parser.add_argument('--save_path', default=None, type=str,
+parser.add_argument('--save_path', default="None", type=str,
                     help='where your models will be saved')
 parser.add_argument('--max_to_keep', default=1, type=int,
                     help='how many keep your saved models')
