@@ -31,10 +31,10 @@ import utils
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 parser = argparse.ArgumentParser(description='PyTorch Training')
-parser.add_argument('--data', help='path to dataset')
-parser.add_argument('--data_name', default=None, type=str,
+parser.add_argument('--data', default="/data/home/jyb/anaconda3/envs/venv/proxy-synthesis/dataset/carDB", help='path to dataset')
+parser.add_argument('--data_name', default="cars196", type=str,
                     help='dataset name')
-parser.add_argument('--save_path', default="None", type=str,
+parser.add_argument('--save_path', default="/data/home/jyb/anaconda3/envs/venv/proxy-synthesis/logs/CARS196_norm_softmax", type=str,
                     help='where your models will be saved')
 parser.add_argument('--max_to_keep', default=1, type=int,
                     help='how many keep your saved models')
@@ -54,7 +54,7 @@ parser.add_argument('--centerlr', default=0.01, type=float,
                     help='initial center learning rate')
 parser.add_argument('--wd', '--weight_decay', default=1e-4, type=float,
                     help='weight decay', dest='weight_decay')
-parser.add_argument('--gpu', default=None, type=int,
+parser.add_argument('--gpu', default=0, type=int,
                     help='GPU id to use.')
 parser.add_argument('--eps', default=0.01, type=float,
                     help='epsilon for Adam')
@@ -70,7 +70,7 @@ parser.add_argument('--freeze_BN', action='store_true',
                     help='freeze bn')
 parser.add_argument('-C', default=98, type=int,
                     help='C')
-parser.add_argument('--backbone', default='bninception', type=str,
+parser.add_argument('--backbone', default='resnet50', type=str,
                     help='bninception, resnet18, resnet34, resnet50, resnet101')
 parser.add_argument('--pooling_type', default='GAP', type=str,
                     help='GAP | GMP | GAP,GMP')
@@ -96,7 +96,7 @@ parser.add_argument('--use_amp', default=False, type=lambda s: s.lower() in ['tr
                     help='Use AMP')
 parser.add_argument('--deterministic', default=False, type=lambda s: s.lower() in ['true', 't', 'yes', '1'],
                     help='Deterministic experiments')
-parser.add_argument('--loss', default='SoftMax_vanilla', type=str,
+parser.add_argument('--loss', default='Norm_Softmax', type=str,#############loss function###############
                     help='loss you want')
 parser.add_argument('--scale', default=1.0, type=float,
                     help='scale for softmax variations')
