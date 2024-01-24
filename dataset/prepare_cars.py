@@ -6,7 +6,7 @@ Apache License v2.0
 import os
 import shutil
 
-base_path = 'dataset'
+base_path = '/data/home/jyb/anaconda3/envs/venv/proxy-synthesis/dataset'
 trainPrefix = os.path.join(base_path, 'carDB/train/')
 testPrefix = os.path.join(base_path, 'carDB/test/')
 for lines in open(os.path.join(base_path, 'cars_annos.txt')):
