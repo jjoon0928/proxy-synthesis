@@ -84,7 +84,7 @@ def evaluation(X, Y, Kset, args):
         ng, d = X_gallery.shape
         I = np.empty([nq, kmax + offset], dtype='int64')
         D = np.empty([nq, kmax + offset], dtype='float32')
-        res = faiss.StandardGpuResources()
+        res = faiss.GpuMultipleClonerOptions()
         res.setDefaultNullStreamAllDevices()
         
         '''
