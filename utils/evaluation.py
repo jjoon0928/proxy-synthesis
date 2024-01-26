@@ -9,28 +9,33 @@ from sklearn.cluster import KMeans
 from sklearn.metrics.cluster import normalized_mutual_info_score
 
 def evaluation(X, Y, Kset, args):
+
     def get_recallK(Y_query, YNN, Kset):
         recallK = np.zeros(len(Kset))
         num = Y_query.shape[0]
-        for i in range(len(Kset)):
+        for i in range(0, len(Kset)):
             pos = 0.
-            for j in range(num):
+            for j in range(0, num):
                 if Y_query[j] in YNN[j, :Kset[i]]:
                     pos += 1.
-            recallK[i] = pos / num
+            recallK[i] = pos/num
         return recallK
 
     def get_Rstat(Y_query, YNN, test_class_dict):
+        '''
+        test_class_dict:
+            key = class_idx, value = the number of images
+        '''
         RP_list = []
         MAP_list = []
 
         for gt, knn in zip(Y_query, YNN):
-            n_imgs = test_class_dict[gt] - 1  # -1 for query itself.
+            n_imgs = test_class_dict[gt] - 1 # - 1 for query.
             selected_knn = knn[:n_imgs]
             correct_array = (selected_knn == gt).astype('float32')
-
+            
             RP = np.mean(correct_array)
-
+            
             MAP = 0.0
             sum_correct = 0.0
             for idx, correct in enumerate(correct_array):
@@ -38,25 +43,27 @@ def evaluation(X, Y, Kset, args):
                     sum_correct += 1.0
                     MAP += sum_correct / (idx + 1.0)
             MAP = MAP / n_imgs
-
+            
             RP_list.append(RP)
             MAP_list.append(MAP)
-
+        
         return np.mean(RP_list), np.mean(MAP_list)
 
     def evaluation_faiss(X, Y, Kset, args):
         if args.data_name.lower() != 'inshop':
-            kmax = np.max(Kset + [args.max_r])  # search K
+            kmax = np.max(Kset + [args.max_r]) # search K
         else:
             kmax = np.max(Kset)
-
+        
         test_class_dict = args.test_class_dict
 
-        nmi = 0.0
+        # compute NMI
         if args.do_nmi:
-            classN = np.max(Y) + 1
-            kmeans = KMeans(n_clusters=classN, random_state=0).fit(X)
+            classN = np.max(Y)+1
+            kmeans = KMeans(n_clusters=classN).fit(X)
             nmi = normalized_mutual_info_score(Y, kmeans.labels_, average_method='arithmetic')
+        else:
+            nmi = 0.0
 
         if args.data_name.lower() != 'inshop':
             offset = 1
@@ -64,7 +71,8 @@ def evaluation(X, Y, Kset, args):
             X_gallery = X
             Y_query = Y
             Y_gallery = Y
-        else:
+
+        else: # inshop
             offset = 0
             len_gallery = len(args.gallery_labels)
             X_gallery = X[:len_gallery, :]
@@ -72,31 +80,45 @@ def evaluation(X, Y, Kset, args):
             Y_query = args.query_labels
             Y_gallery = args.gallery_labels
 
-        # Convert to float32 for FAISS compatibility
-        X_query = X_query.astype(np.float32)
-        X_gallery = X_gallery.astype(np.float32)
-
-        # FAISS GPU resources setup
+        nq, d = X_query.shape
+        ng, d = X_gallery.shape
+        I = np.empty([nq, kmax + offset], dtype='int64')
+        D = np.empty([nq, kmax + offset], dtype='float32')
         res = faiss.StandardGpuResources()
         res.setDefaultNullStreamAllDevices()
+        
+        '''
+        faiss.bruteForceKnn(res, faiss.METRIC_INNER_PRODUCT,
+                            faiss.swig_ptr(X_gallery), True, ng,
+                            faiss.swig_ptr(X_query), True, nq,
+                            d, int(kmax + offset), faiss.swig_ptr(D), faiss.swig_ptr(I))
+        '''
 
-        # Index setup for inner product (cosine similarity)
-        index = faiss.IndexFlatIP(X_gallery.shape[1])  # Dimension of the vectors
-        gpu_index = faiss.index_cpu_to_gpu(res, 0, index)  # Assuming using GPU 0
+        args = faiss.GpuDistanceParams()
+        args.metric = faiss.METRIC_INNER_PRODUCT
+        args.k = int(kmax + offset)
+        args.dims = d
+        args.vectors = faiss.swig_ptr(X_gallery)
+        args.vectorsRowMajor = True
+        args.numVectors = ng
+        args.queries = faiss.swig_ptr(X_query)
+        args.queriesRowMajor = True
+        args.numQueries = nq
+        args.outDistances = faiss.swig_ptr(D)
+        args.outIndices = faiss.swig_ptr(I)
+        faiss.bfKnn(res, args)
 
-        gpu_index.add(X_gallery)  # Adding gallery vectors to the index
+        indices = I[:,offset:]
 
-        # Search the k nearest neighbors
-        D, I = gpu_index.search(X_query, kmax + offset)  # Perform the search
-
-        indices = I[:, offset:]  # Adjust based on offset
-        YNN = Y_gallery[indices.flatten()].reshape(indices.shape)
-
+        YNN = Y_gallery[indices]
+        
         recallK = get_recallK(Y_query, YNN, Kset)
-
-        RP, MAP = (0, 0)
+        
         if args.data_name.lower() != 'inshop':
             RP, MAP = get_Rstat(Y_query, YNN, test_class_dict)
+        else: # inshop
+            RP = 0
+            MAP = 0
 
         return nmi, recallK, RP, MAP
 
